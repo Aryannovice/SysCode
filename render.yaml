@@ -7,10 +7,6 @@ services:
     plan: free
     autoDeploy: true
     healthCheckPath: /health
-    disk:
-      name: chroma-data
-      mountPath: /app/chroma_db
-      sizeGB: 1
     envVars:
       - key: OPENAI_API_KEY
         sync: false
