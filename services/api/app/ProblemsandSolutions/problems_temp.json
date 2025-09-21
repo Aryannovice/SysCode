@@ -1,0 +1,44 @@
+[
+    {
+      "id": "url-shortener",
+      "title": "Design a URL Shortener",
+      "description": "Design a URL shortening service like Bitly. The system should provide a short alias for any given long URL and redirect users from the short URL to the original URL. Consider how to generate unique short codes, handle collisions, and scale to millions of URL mappings and requests per day.",
+      "tags": ["backend", "scalability", "web"],
+      "difficulty": "beginner",
+      "expectations": [
+        "Generate unique short codes for URLs",
+        "Handle redirection efficiently",
+        "Scale to a large number of requests",
+        "Minimize latency on redirection",
+        "Consider use of database and caching for storage"
+      ]
+    },
+    {
+      "id": "rate-limiter",
+      "title": "Design a Rate Limiter",
+      "description": "Design a rate limiting service to control the number of requests users can make to an API within a given time window. The service should prevent abuse by throttling requests when a user exceeds the configured limits (e.g. max requests per second or per day). Consider how to handle distributed servers and user-specific limits.",
+      "tags": ["backend", "scalability", "policies"],
+      "difficulty": "beginner",
+      "expectations": [
+        "Enforce request rate limits per user or per IP",
+        "Handle limits in a distributed environment",
+        "Minimize overhead and latency",
+        "Support configuring limits (e.g. per minute or per hour)",
+        "Ensure correctness under concurrent requests"
+      ]
+    },
+    {
+      "id": "caching-service",
+      "title": "Design a Caching Service",
+      "description": "Design an in-memory caching layer for a high-traffic web application. The cache should store frequently accessed data to reduce load on the primary database. Consider how to handle cache consistency, eviction policy, and fault tolerance.",
+      "tags": ["backend", "cache", "performance"],
+      "difficulty": "beginner",
+      "expectations": [
+        "Explain when and what data to cache",
+        "Describe the cache architecture (e.g. distributed or local)",
+        "Specify an eviction policy (LRU, LFU, TTL)",
+        "Ensure cache consistency with the database",
+        "Consider how to recover from cache server failures"
+      ]
+    }
+  ]

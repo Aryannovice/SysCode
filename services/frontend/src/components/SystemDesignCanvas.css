@@ -1,0 +1,304 @@
+/* System Design Canvas Styles */
+.system-design-canvas {
+  display: flex;
+  height: 100%;
+  background: var(--bg-primary);
+}
+
+.component-palette {
+  width: 320px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(15px);
+  border-right: 1px solid var(--border-primary);
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.palette-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+.palette-header h3 {
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.palette-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  padding: 0.5rem;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  color: var(--text-secondary);
+}
+
+.action-btn:hover {
+  background: var(--primary-emerald);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.action-btn.danger:hover {
+  background: #EF4444;
+}
+
+.component-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1;
+}
+
+.component-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 2px solid var(--border-secondary);
+  border-radius: 12px;
+  cursor: grab;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.component-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.component-item.dragging {
+  opacity: 0.7;
+  transform: scale(1.02) rotate(2deg);
+  cursor: grabbing;
+}
+
+.component-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: white;
+  font-weight: bold;
+  box-shadow: var(--shadow-sm);
+}
+
+.component-info {
+  flex: 1;
+}
+
+.component-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.component-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+.palette-footer {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-secondary);
+}
+
+.palette-footer p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.canvas-area {
+  flex: 1;
+  position: relative;
+  background: var(--bg-secondary);
+}
+
+.react-flow-canvas {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+}
+
+/* Custom Node Styles */
+.custom-node {
+  background: var(--bg-glass);
+  backdrop-filter: blur(15px);
+  border: 2px solid var(--border-primary);
+  border-radius: 16px;
+  padding: 1rem;
+  min-width: 180px;
+  box-shadow: var(--shadow-md);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.custom-node:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.custom-node.selected {
+  border-color: var(--primary-emerald);
+  box-shadow: var(--shadow-xl), 0 0 0 4px rgba(5, 150, 105, 0.1);
+}
+
+.node-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.node-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  background: var(--primary-emerald);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.node-title {
+  flex: 1;
+}
+
+.node-label {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.node-tech {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+
+.node-badge {
+  font-size: 0.7rem;
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  margin-top: 0.3rem;
+  display: inline-block;
+}
+
+.delete-btn {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #EF4444;
+  font-size: 0.8rem;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.delete-btn:hover {
+  background: #EF4444;
+  color: white;
+  transform: scale(1.1);
+}
+
+.node-description {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+  line-height: 1.3;
+}
+
+.node-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.metric {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-secondary);
+}
+
+.metric strong {
+  color: var(--primary-emerald);
+}
+
+/* Node Type Specific Colors */
+.microservice-node .node-icon { background: #3B82F6; }
+.database-node .node-icon { background: #F59E0B; }
+.cache-node .node-icon { background: #EF4444; }
+.load-balancer-node .node-icon { background: #10B981; }
+.queue-node .node-icon { background: #8B5CF6; }
+.api-gateway-node .node-icon { background: #06B6D4; }
+
+/* React Flow Handle Styles */
+.react-flow__handle {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--primary-emerald);
+  background: white;
+  border-radius: 50%;
+}
+
+.react-flow__handle:hover {
+  background: var(--primary-emerald);
+  transform: scale(1.2);
+}
+
+/* React Flow Edge Styles */
+.react-flow__edge-path {
+  stroke: var(--primary-emerald);
+  stroke-width: 2px;
+}
+
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: 8, 8;
+  animation: flow 2s linear infinite;
+}
+
+@keyframes flow {
+  from { stroke-dashoffset: 16; }
+  to { stroke-dashoffset: 0; }
+}

@@ -1,0 +1,457 @@
+[
+    {
+      "problem_id": "url-shortener",
+      "approach_name": "Hash-Based Shortening",
+      "architecture_components": [
+        "Client (Browser)",
+        "Load Balancer",
+        "API Servers",
+        "Database",
+        "Cache"
+      ],
+      "explanation": "Clients request short URLs from the API servers. On creation, the server generates a unique code (e.g. using hashing or an ID counter) and stores the mapping (short code to original URL) in a database. For redirection, the load balancer routes requests to the API servers, which look up the original URL and respond with a redirect. A cache (like Redis) can be added to store frequently accessed mappings to reduce database load and speed up lookups.",
+      "design_choices": [
+        "Use a database (NoSQL or SQL) for storing URL mappings",
+        "Generate unique codes via hashing or sequential ID with collision handling",
+        "Apply caching for high-read operations (e.g. popular URLs)",
+        "Decide on code length and character set (impacting space vs. readability)"
+      ],
+      "scalability": "This design can scale horizontally by adding more application servers and partitioning the database by code or using a distributed key-value store. Caching reduces read load, and databases can be sharded when the dataset grows.",
+      "availability": "Use multiple replicated database nodes and stateless API servers behind a load balancer to avoid single points of failure.",
+      "fault_tolerance": "Provide database replication and regular backups. Application servers are stateless, so any server failure does not lose data, and the load balancer can redirect traffic to healthy servers.",
+      "extensions": "Support custom aliases or vanity URLs, track usage analytics (click counts), and implement expiration of short URLs if needed."
+    },
+    {
+      "problem_id": "rate-limiter",
+      "approach_name": "Token Bucket Algorithm",
+      "architecture_components": [
+        "Client",
+        "Load Balancer",
+        "API Gateways",
+        "Rate Limiting Service",
+        "Data Store (Redis or In-Memory)"
+      ],
+      "explanation": "Each API request passes through a gateway that checks the requester's rate limit. The rate limiter service uses a token bucket or leaky bucket algorithm per user or IP. It keeps counters (tokens) in a fast store like Redis. For each request, a token is consumed; if the bucket is empty, the request is rejected or delayed. This can be implemented close to the API servers or as a middleware to ensure low latency.",
+      "design_choices": [
+        "Use a distributed in-memory store (e.g. Redis) for counters to handle multiple servers",
+        "Choose rate limiting algorithm (token bucket allows burst, fixed window vs sliding window)",
+        "Decide which layer enforces limits (API gateway vs application level)",
+        "Trade-off between accuracy and scalability (e.g. approximate counters)"
+      ],
+      "scalability": "The system can scale by deploying multiple rate limiter instances and sharding counters by user or endpoint. Using a centralized store like Redis with clustering can handle many counters.",
+      "availability": "Run redundant rate limiter instances and a highly available Redis cluster to avoid a single point of failure. The API can allow some default behavior if the rate limiter is temporarily unreachable.",
+      "fault_tolerance": "Rate limiting state should be periodically persisted or replicated to handle Redis node failures. If a limiter fails, requests can be temporarily queued or limited conservatively until recovery.",
+      "extensions": "Allow configurable rate limits per user or service, provide headers indicating remaining quota, and support bursting rules or delay instead of blocking."
+    },
+    {
+      "problem_id": "crud-api",
+      "approach_name": "RESTful Service with Authentication",
+      "architecture_components": [
+        "Client (Web/Mobile)",
+        "API Gateway",
+        "Application Servers",
+        "Relational Database",
+        "Authentication Service"
+      ],
+      "explanation": "The to-do API exposes REST endpoints for managing tasks. Each request includes an authentication token identifying the user. The API server verifies tokens and then performs CRUD operations on a database where tasks are stored, typically in a table keyed by user ID. Pagination is implemented via query parameters (limit/offset). The authentication service (like OAuth or JWT) issues tokens when users log in. The data schema ensures tasks are associated with user IDs.",
+      "design_choices": [
+        "Use a relational database for structured storage of users and tasks",
+        "Implement RESTful API patterns with endpoints like GET /todos, POST /todos, etc.",
+        "Use JWT tokens or session management for user authentication",
+        "Restrict database queries by user ID to isolate user data"
+      ],
+      "scalability": "To scale, replicate the stateless application servers and use a load balancer. Database scaling can involve read replicas for queries and possibly sharding by user ID if necessary.",
+      "availability": "Run multiple instances of the API servers and a replicated database cluster. Employ health checks and failover mechanisms for high availability.",
+      "fault_tolerance": "Use database backups and replication. The stateless API servers can recover from failure by restarting since state is in the database.",
+      "extensions": "Add features like due dates, reminders, or real-time notifications. Integrate with third-party auth providers (Google, Facebook) for login."
+    },
+    {
+      "problem_id": "caching-service",
+      "approach_name": "Distributed In-Memory Cache",
+      "architecture_components": [
+        "Clients",
+        "Application Servers",
+        "In-Memory Cache (Redis/Memcached)",
+        "Primary Database"
+      ],
+      "explanation": "The caching service sits between the application servers and the database. Frequently accessed data (like product info) is first checked in the cache. On a cache miss, the data is fetched from the database, then stored in the cache for future requests. A TTL (time-to-live) or LRU eviction policy is applied to keep memory usage bounded. Cache can be a distributed system like Redis cluster or Memcached pool to handle high throughput and partition the key space.",
+      "design_choices": [
+        "Choose a distributed cache (Redis or Memcached) for scalability",
+        "Set an eviction policy (e.g., TTL or LRU) to prevent stale data and limit memory",
+        "Decide cache invalidation strategy (write-through, write-behind, or manual invalidation)",
+        "Ensure cache is eventually consistent with the database (if data is updated)"
+      ],
+      "scalability": "Add more cache nodes to the cluster to handle more keys and connections. Use consistent hashing for key distribution so servers can be added without full rebalancing.",
+      "availability": "Use replication in Redis or multiple cache nodes so that if one node fails, others serve requests. Application servers can failover to other cache nodes automatically.",
+      "fault_tolerance": "On cache node failure, data will be refetched from the primary database. Use backup/restore features of the cache if needed for warm-up after recovery.",
+      "extensions": "Implement multi-level caching (L1 cache per app server and L2 distributed cache). Provide cache statistics and tools to monitor hit/miss ratios."
+    },
+    {
+      "problem_id": "logging-service",
+      "approach_name": "ELK Stack (Elasticsearch + Logstash)",
+      "architecture_components": [
+        "Log Shippers (e.g. Logstash, Fluentd)",
+        "Message Queue (Kafka)",
+        "Search Index (Elasticsearch)",
+        "Storage (HDFS or S3)"
+      ],
+      "explanation": "Application logs are forwarded by log shipper agents (like Logstash or Fluentd) to a message queue (Kafka) for buffering. Consumers (Logstash or custom processors) read from Kafka and index logs into Elasticsearch for querying. Elasticsearch stores logs in an inverted index to support fast searches by terms or time. Old logs are periodically archived to long-term storage (HDFS/S3) based on retention policies. Kibana (or similar) can visualize and query the logs.",
+      "design_choices": [
+        "Use a message queue (Kafka) to decouple log producers and consumers and handle bursts",
+        "Index logs in Elasticsearch for quick text search and analysis",
+        "Implement sharding and replication in Elasticsearch for scalability and availability",
+        "Decide on log aggregation vs direct indexing for different use-cases (debug vs metrics)"
+      ],
+      "scalability": "Scale by adding more Kafka partitions and more Elasticsearch shards. Logging agents can scale horizontally on each microservice host. Elasticsearch clusters can grow with more nodes.",
+      "availability": "Use Elasticsearch replication and Kafka replication to prevent data loss. Multiple log shipper instances can failover if one goes down.",
+      "fault_tolerance": "Kafka's replication ensures messages are not lost if a broker fails. Elasticsearch has replicas of indices. If the search cluster is under maintenance, logs still get archived for later analysis.",
+      "extensions": "Provide real-time alerting on specific log patterns. Integrate with monitoring systems to trigger notifications. Use Kubernetes for dynamic log pipeline scaling."
+    },
+    {
+      "problem_id": "notification-service",
+      "approach_name": "Publish-Subscribe Notification Pipeline",
+      "architecture_components": [
+        "Producer (Trigger Service)",
+        "Message Queue (e.g. RabbitMQ, Kafka)",
+        "Notification Workers",
+        "External Services (Email/SMS APIs)",
+        "Database"
+      ],
+      "explanation": "When an event triggers a notification, the producer service places a message in a queue indicating the recipient and channel. Worker processes subscribe to the queue, process messages, and call external APIs (email provider, SMS gateway, push). If delivery fails, the message can be retried or moved to a dead-letter queue. Templates are stored in a database and filled with user-specific content. This decouples notification creation from delivery and allows the system to scale by adding more workers for different channels.",
+      "design_choices": [
+        "Use a message queue to buffer notifications and decouple producers from workers",
+        "Implement separate workers for each channel to handle different APIs and rate limits",
+        "Maintain idempotency keys to avoid sending duplicates on retries",
+        "Store templates and user preferences to customize notifications"
+      ],
+      "scalability": "Scale by adding more worker instances and partitioning the message queue (e.g. by channel or user segment). Use auto-scaling for spikes (e.g. holiday sales sending many notifications).",
+      "availability": "Deploy notification workers in multiple data centers or availability zones. Use redundant external API credentials. The queue ensures messages are not lost if services restart.",
+      "fault_tolerance": "Messages that fail after max retries are logged for manual inspection. The queue and workers can recover from crashes without losing pending messages. Heartbeat monitoring can restart stuck workers.",
+      "extensions": "Integrate with user analytics to send targeted notifications. Provide a UI for scheduling campaigns. Add A/B testing for notification content."
+    },
+    {
+      "problem_id": "key-value-store",
+      "approach_name": "Partitioned Distributed Store",
+      "architecture_components": [
+        "Clients",
+        "Coordinator (API Layer)",
+        "Distributed Storage Nodes",
+        "Partitioning Service (Consistent Hashing)"
+      ],
+      "explanation": "The key-value store is made of many storage nodes. A partitioning service (using consistent hashing) assigns keys to specific nodes. For each put/get request, the client or coordinator routes the request to the correct node. Data is replicated across a few nodes for fault tolerance. If a node fails, requests are rerouted to replicas. This design allows adding nodes to increase capacity.",
+      "design_choices": [
+        "Use consistent hashing to distribute keys evenly without re-partitioning everything",
+        "Replicate data on multiple nodes to handle node failures",
+        "Choose eventual consistency for availability or strong consistency via quorum reads/writes",
+        "Keep data in-memory for speed (like Redis) or on disk for persistence"
+      ],
+      "scalability": "New nodes can be added to the cluster; consistent hashing reassigns a portion of keys to new nodes. The system can handle more data and queries by adding partitions.",
+      "availability": "With data replicated, the system remains available even if some nodes go down. Clients can read from any replica; a leader or consensus algorithm can ensure writes.",
+      "fault_tolerance": "Use replication and monitoring so that if a node fails, replicas take over. Recovery involves re-replicating data from healthy nodes to new instances.",
+      "extensions": "Implement multi-tenancy (namespaces). Add features like TTL on keys, transactions across keys, or a RESTful API layer."
+    },
+    {
+      "problem_id": "authentication-service",
+      "approach_name": "Token-Based Authentication",
+      "architecture_components": [
+        "Client App",
+        "Auth Server",
+        "User Database",
+        "Token Store or JWT mechanism"
+      ],
+      "explanation": "Users register with a username and password; the password is hashed and stored in a secure database. On login, credentials are verified, and if valid, the service issues a signed token (e.g., JWT) or a session ID. The client includes this token in future requests. The auth server validates the token signature or looks up the session to confirm identity. Tokens have expiration times; a refresh token mechanism can be implemented to obtain new tokens without re-login.",
+      "design_choices": [
+        "Use strong hashing algorithms (bcrypt, Argon2) to store passwords",
+        "Decide between JWT (stateless) or session IDs stored in a database (stateful)",
+        "Set token expiration and use refresh tokens for continuous sessions",
+        "Implement rate limiting or captcha to prevent brute force attacks"
+      ],
+      "scalability": "Authentication servers can be stateless (if using JWT) so they scale easily behind a load balancer. User database can be scaled (read replicas) and partitioned (e.g. by user ID range).",
+      "availability": "Run multiple auth server instances behind a load balancer. Use a highly available database for user data. If using JWT, no centralized session store is needed for token validation.",
+      "fault_tolerance": "Since credentials and tokens are data, ensure they are replicated in the database. If the auth server dies, others continue to serve if stateless.",
+      "extensions": "Add multi-factor authentication, OAuth integration with third-party providers, and user management features (password reset, email verification)."
+    },
+    {
+      "problem_id": "file-sharing-service",
+      "approach_name": "Cloud Storage with Signed URLs",
+      "architecture_components": [
+        "Client (Browser/App)",
+        "Load Balancer",
+        "Web Servers (API)",
+        "Object Storage (e.g. AWS S3)",
+        "Metadata Database"
+      ],
+      "explanation": "When a user uploads a file, the server stores it in a scalable object storage service (like S3) and records metadata in a database (file ID, owner, access permissions). To share, the service generates a signed URL with a token allowing access to the file (with expiration). Downloads use the signed URL to fetch directly from storage, offloading the web servers. The database ensures only authorized users can generate share links or access metadata.",
+      "design_choices": [
+        "Use cloud object storage (S3, GCS) for scalable file handling",
+        "Generate time-limited signed URLs for secure direct downloads",
+        "Store file metadata (owner, permissions) in a database for access control",
+        "Decide on replication policy and region for the storage to reduce latency"
+      ],
+      "scalability": "Object storage scales automatically with more files. Web/API servers can be scaled horizontally behind the load balancer. Database can be sharded by file ID if it grows large.",
+      "availability": "Use storage services with built-in durability and replication. Deploy API servers in multiple zones. Data is not lost when servers fail because it resides in the object store.",
+      "fault_tolerance": "Rely on the underlying storage's redundancy. In the application, if a server fails, others continue handling uploads/download requests seamlessly.",
+      "extensions": "Add features like folder organization, file versioning, or collaborative editing. Enable real-time upload progress and background processing (e.g. virus scanning)."
+    },
+    {
+      "problem_id": "task-scheduler",
+      "approach_name": "Distributed Cron with Shards",
+      "architecture_components": [
+        "Job Scheduler Service",
+        "Persistent Store (Database/Queue)",
+        "Worker Nodes",
+        "Time/Timer Service (Cron Jobs or Quartz)"
+      ],
+      "explanation": "Scheduled jobs are stored in a persistent database with their cron expression. The scheduling service tracks upcoming tasks and pushes due tasks to a queue (e.g., Kafka) or directly to workers at the correct time. Worker nodes then pull tasks from the queue and execute them. Jobs can be partitioned across multiple schedulers for scalability, each handling a subset of job schedules. If a worker fails to execute a job, the message queue retains it so another worker can retry the task.",
+      "design_choices": [
+        "Use a database to store job schedules and current state",
+        "Trigger tasks via a distributed timer or by continuously polling for due tasks",
+        "Partition the job space so multiple schedulers can run in parallel",
+        "Implement idempotency and locking to ensure tasks are not executed multiple times"
+      ],
+      "scalability": "Add more scheduler instances and workers to handle more jobs. Partitioning jobs by ID or time prevents a single scheduler from being a bottleneck.",
+      "availability": "Use redundant schedulers with leader election or lease to ensure at least one is active. The persistent store should be replicated. Workers can be autoscaled.",
+      "fault_tolerance": "If a scheduler node fails, another can pick up its jobs. Use transaction logs or queues to record job execution attempts. Failed tasks can be retried or moved to a dead-letter queue.",
+      "extensions": "Add dynamic scheduling (adding/cancelling jobs at runtime via API). Support complex dependencies between jobs, or real-time dashboards showing upcoming tasks."
+    },
+    {
+      "problem_id": "instagram",
+      "approach_name": "Feed Generator with Sharding",
+      "architecture_components": [
+        "Client (Mobile/Web)",
+        "Load Balancer",
+        "API Servers",
+        "Database (SQL/NoSQL for user and social graph)",
+        "Distributed Storage for Images (CDN, Blob Storage)",
+        "Feed Service",
+        "Cache (Redis/Memcached)",
+        "Notification Service"
+      ],
+      "explanation": "When a user uploads an image, it's stored in distributed object storage and its metadata goes to a database. The upload triggers the feed service to push the photo entry to the feeds of followers (fan-out on write). Feeds are stored in a cache or NoSQL store keyed by user. On user feed requests, API servers fetch from the cache or pull from storage if needed. Likes and comments update counters in a database (possibly separate) and send events to a notification service. Images are served via a CDN for performance.",
+      "design_choices": [
+        "Use sharded SQL/NoSQL databases for user data and follower relationships",
+        "Fan-out on write to push posts to followers' feeds for fast reads, or fan-out on read as an alternative",
+        "Store images in a scalable blob store with CDN in front",
+        "Cache user feeds in Redis for quick access, and invalidate on new posts",
+        "Handle eventual consistency for likes/comments counters via asynchronous processing"
+      ],
+      "scalability": "The system can scale by adding more shards to databases and more feed generators. The use of CDN and caching reduces load on origin servers. Sharding the social graph by user ID helps distribute the data and load.",
+      "availability": "Deploy services across multiple data centers. Use replicated databases and multi-region storage for images. Cache replicas can also improve availability in case of failures.",
+      "fault_tolerance": "If a feed generation fails, the event can be retried. Image storage is redundant. Use queue-based processing (Kafka) so temporary failures don't lose write operations. Database replication prevents data loss.",
+      "extensions": "Add features like stories, Explore page (recommendations), tagging, direct messaging, or live streaming integration."
+    },
+    {
+      "problem_id": "cdn",
+      "approach_name": "Distributed Edge Cache Network",
+      "architecture_components": [
+        "Client (Browser)",
+        "DNS Service",
+        "Edge Servers (Cache Nodes) in Various Regions",
+        "Load Balancer",
+        "Origin Server (Primary Storage)"
+      ],
+      "explanation": "Clients request content by resolving the CDN domain; DNS routes them to a nearby edge server. The edge server checks if it has the requested asset cached; if so, it returns it immediately. On a cache miss, the edge server retrieves the asset from the origin (or a tiered cache), caches it locally, and then serves the client. Edges have eviction policies to manage storage. For content updates, origin or an orchestrator issues invalidation commands to edge caches. The system ensures edges respond quickly to users while the origin serves as the source of truth.",
+      "design_choices": [
+        "Place edge servers in multiple regions to be close to users",
+        "Use DNS load balancing or anycast to direct clients to the nearest edge",
+        "Implement efficient cache invalidation (time-based TTL or explicit purge via API)",
+        "Adopt a tiered cache hierarchy (global vs regional caches) to reduce origin load"
+      ],
+      "scalability": "Add more edge nodes in regions with high traffic. Use DNS or global load balancers to route traffic. Edges cache popular content, reducing origin load. Scale origin by adding replicas or using cloud storage.",
+      "availability": "If one edge node fails, DNS can direct clients to alternate nearby edges. Edge caches can fall back to origin on miss. Origin should be highly available (replicas, geo-distributed).",
+      "fault_tolerance": "Use redundant networking and servers at each edge location. If an edge loses its cached copy, it fetches from origin or parent cache. Origin upgrades happen gradually to avoid downtime.",
+      "extensions": "Support dynamic content acceleration with smart caching rules, real-time analytics of cache hits, or integration with DDoS protection. Implement HTTP/2 or QUIC for faster transfers."
+    },
+    {
+      "problem_id": "real-time-chat",
+      "approach_name": "Pub/Sub Messaging with Persistent Storage",
+      "architecture_components": [
+        "Client (App/Web)",
+        "Load Balancer",
+        "Chat Servers (WebSocket endpoints)",
+        "Message Broker (Pub/Sub)",
+        "Database (Chat History)",
+        "Presence Service"
+      ],
+      "explanation": "Clients maintain persistent connections to chat servers (using WebSockets or similar). When a user sends a message, the chat server publishes it to a message broker (like Kafka or RabbitMQ) on a channel representing the chat room or user. The message broker pushes the message to other subscribed chat servers handling the recipients, which forward it to their connected clients immediately. All messages are also saved to a database for history. A presence service tracks online/offline status of users to route messages.",
+      "design_choices": [
+        "Use a publish-subscribe system to decouple senders and receivers for scalability",
+        "Employ WebSocket or similar protocols for low-latency two-way communication",
+        "Partition chat rooms across servers or brokers to distribute load",
+        "Store messages in a scalable database (e.g. Cassandra) partitioned by conversation ID",
+        "Implement presence tracking to know which servers have which users"
+      ],
+      "scalability": "Chat servers can be sharded by user ID or hashed. The message broker cluster can scale with more brokers and partitions. Use a multi-region deployment for global reach with data replication.",
+      "availability": "Run multiple chat server instances and broker nodes with replication. If a server fails, clients reconnect to another instance. Messages are written to persistent storage to avoid loss.",
+      "fault_tolerance": "Message brokers can be configured with replication (Kafka). If a server crashes while processing, the broker can resend. Database replication ensures chat history durability. Queues act as buffers.",
+      "extensions": "Add typing indicators, read receipts, or end-to-end encryption. Support offline message queues for when users disconnect. Integrate push notifications for mobile apps."
+    },
+    {
+      "problem_id": "video-streaming",
+      "approach_name": "Distributed Video Transcoding and CDN",
+      "architecture_components": [
+        "Client (Player App)",
+        "Content Delivery Network (CDN)",
+        "Origin Storage (Video Files)",
+        "Transcoding Service",
+        "Database (User Accounts/Metadata)"
+      ],
+      "explanation": "When a video is uploaded, the service stores the original and uses a transcoding pipeline (distributed workers) to generate multiple resolution/bitrate versions. The files are stored in an object store and distributed via a CDN. When a user streams a video, they connect to the nearest CDN edge, which caches and serves video segments. Adaptive bitrate streaming is handled by the player requesting the appropriate segment. The service handles millions of streams by relying on the CDN and scalable storage.",
+      "design_choices": [
+        "Use cloud storage (S3) for storing original and transcoded videos",
+        "Implement a transcoding queue to generate necessary video formats",
+        "Leverage CDN for distributing video segments close to users",
+        "Employ adaptive streaming protocols (HLS, DASH) for dynamic quality",
+        "Use a scalable database or in-memory store for session/authentication states"
+      ],
+      "scalability": "CDN automatically offloads traffic to edge caches worldwide. Add more transcoding workers as needed for uploads. The origin storage can grow with more capacity. Use microservices for user management.",
+      "availability": "Store videos redundantly across multiple regions. Use multiple CDN providers or PoPs. If a transcoding node fails, the video is retried on another node. User data is in a replicated database.",
+      "fault_tolerance": "CDN caches provide fault tolerance if origin is overloaded. The system can fallback to lower bitrate. Use retries and monitoring in the transcoding pipeline.",
+      "extensions": "Implement recommendation engine (Netflix algorithm). Add DRM for content protection. Support live streaming in addition to on-demand."
+    },
+    {
+      "problem_id": "ecommerce",
+      "approach_name": "Microservices Architecture",
+      "architecture_components": [
+        "Load Balancer",
+        "API Gateway",
+        "Catalog Service",
+        "Cart Service",
+        "Order Service",
+        "Payment Service",
+        "User Service",
+        "Inventory Service",
+        "Databases (SQL/NoSQL as appropriate)",
+        "Cache (Redis)",
+        "Message Queue"
+      ],
+      "explanation": "The platform is split into microservices: Catalog (products, search), Cart (user's cart), Order (checkout process), Inventory, Payment, and User. Clients interact via an API Gateway. The catalog uses a search engine (like Elasticsearch) for fast product search. User carts may be stored in cache for low latency. Order service orchestrates checkout, updates inventory, and creates orders in the database. Payment service interacts with external gateways. Services communicate via APIs and message queues for asynchronous tasks.",
+      "design_choices": [
+        "Decompose the system into services by business domain to scale independently",
+        "Use a search engine (Elasticsearch) for catalog search functionality",
+        "Maintain eventual consistency between inventory and orders (e.g. reserve stock at order time)",
+        "Implement transactions or two-phase commit carefully for critical operations",
+        "Utilize message queues for asynchronous processes (email notifications, logs, etc.)"
+      ],
+      "scalability": "Each microservice can be scaled horizontally. Use replicated databases and sharding (e.g. partition user data). Caches (Redis) can hold frequently accessed data like product pages or cart sessions. ElasticSearch cluster can scale for search loads.",
+      "availability": "Services run in multiple instances across zones. Databases have replicas. Use circuit breakers and retries between services to handle partial failures gracefully.",
+      "fault_tolerance": "If one service fails, degrade functionality appropriately (e.g., allow read-only catalog if cart fails). Use dead-letter queues for failed tasks. Backup critical data and ensure quick failover for payment processing.",
+      "extensions": "Implement recommendation system, user reviews, dynamic pricing, A/B testing, or internationalization (currency, language). Enable auto-scaling during peak sale events."
+    },
+    {
+      "problem_id": "ride-sharing",
+      "approach_name": "Location-Based Matching Service",
+      "architecture_components": [
+        "Mobile/Client Apps (Driver/Rider)",
+        "API Gateway",
+        "Load Balancer",
+        "Matchmaking Service",
+        "Real-Time Location Service",
+        "Pricing Engine",
+        "Payment Service",
+        "Databases (User, Trip history)",
+        "Map/Geolocation Service"
+      ],
+      "explanation": "Drivers and riders share GPS locations with the service. The matchmaking service queries a geolocation service or uses spatial indexing to find nearby drivers for a ride request. It factors current traffic and driver availability. Surge pricing engine calculates fares based on demand, and the payment service processes charges. All events (location updates, trip events) can be streamed via message queues. Real-time tracking uses WebSockets or push updates to show trip progress. Databases store user and trip data.",
+      "design_choices": [
+        "Use a geospatial database or service (e.g. Redis GEO or PostGIS) to query nearby drivers efficiently",
+        "Implement a matching algorithm that balances driver availability and response time",
+        "Dynamic pricing computed in real-time based on regional demand and supply metrics",
+        "Separate services for ride matching, pricing, and payments to allow independent scaling"
+      ],
+      "scalability": "Shard drivers by region or city. Matchmaking can be done in parallel across regions. Use caching for frequent queries like traffic data. The system can use micro-batches or streaming (Kafka) for handling updates at scale.",
+      "availability": "Deploy services across multiple regions to serve local traffic. If a region's data center fails, nearby regions can assist. Use redundant map providers and failover mechanisms.",
+      "fault_tolerance": "If matchmaking fails, fallback to simpler allocation (like nearest driver). Ensure trip-critical data is logged in a reliable store so that on recovery, incomplete transactions are resolved.",
+      "extensions": "Add features like carpooling (multiple riders per trip), estimated time of arrival (ETA) predictions, driver incentives, or integration with public transit."
+    },
+    {
+      "problem_id": "news-feed",
+      "approach_name": "Hybrid Feed Generation",
+      "architecture_components": [
+        "User Service",
+        "Followers Service (Social Graph)",
+        "Post Service",
+        "Feed Storage (Cache/DB)",
+        "Push Service",
+        "Database (User/Post)"
+      ],
+      "explanation": "When a user posts, the post service records it in a database and pushes a notification to a feed generation service. Using fan-out on write, the new post is added to followers' feed stores (like Redis lists) so it appears in their timelines. For scalability, a hybrid approach can be used: for users with few followers, do fan-out (push the update); for very popular users, fans might pull updates directly from the database on demand. The feed store is read-optimized. Users retrieving the feed get a pre-aggregated list of recent posts.",
+      "design_choices": [
+        "Store follow relationships in a scalable NoSQL or graph database",
+        "Use a combination of push and pull for feed updates (push for most users, pull for very popular accounts)",
+        "Partition feeds by user ID and shard the storage (e.g., consistent hashing)",
+        "Employ caching for hot timelines and pre-aggregated feeds"
+      ],
+      "scalability": "This design allows horizontal scaling by splitting users into shards. Popular user posts are not eagerly pushed to millions of followers; instead, when a fan checks feed, remaining posts are pulled. Use CDNs or caching to deliver static content (profile images, etc.).",
+      "availability": "Replicated caches and databases ensure data is not lost. If feed storage is down, the system can fall back to generating feeds from raw data (slower).",
+      "fault_tolerance": "Background queues (Kafka) buffer feed updates. If a worker fails, others pick up tasks. Data replication protects against node failures.",
+      "extensions": "Add features like ranked feeds (curated or recommended content), user mentions, hashtags, and real-time notifications for new posts."
+    },
+    {
+      "problem_id": "file-sync",
+      "approach_name": "Client-Server Sync with Delta Transfer",
+      "architecture_components": [
+        "Client (Desktop/Mobile App)",
+        "Sync Service/API",
+        "File Metadata Database",
+        "File Storage (Block/Object Store)",
+        "Notification Service"
+      ],
+      "explanation": "Clients monitor local files and notify the sync service of changes (add, modify, delete). The sync service maintains a file metadata database and coordinates uploads/downloads. When a file changes, the client uploads the new version or just the delta (using file diff or chunking). The service updates the master copy in storage and notifies other devices. Conflicts are detected via version vectors or timestamps; conflicting changes are either merged (for text) or saved as separate copies. Notification service alerts other clients to pull updates.",
+      "design_choices": [
+        "Use chunk-based file storage and compute deltas to reduce bandwidth (rsync-like)",
+        "Maintain metadata (version history, last-modified) in a database to track sync state",
+        "Implement conflict resolution strategies (e.g., rename conflicts or auto-merge)",
+        "Use push notifications or long-polling to inform clients of remote changes"
+      ],
+      "scalability": "File storage can be backed by scalable object stores. The metadata DB can be sharded by user. Sync servers can be stateless and scaled horizontally behind a load balancer.",
+      "availability": "Multiple sync servers ensure availability. File storage uses replication. If a sync server fails, clients reconnect to another.",
+      "fault_tolerance": "Clients retry on failure and use checksums to ensure integrity. If a file fails to upload, it can be retried without data loss. Version history allows rollback in case of issues.",
+      "extensions": "Add selective sync (user chooses which folders to sync). Support collaboration by allowing sharing and real-time co-editing indicators. Integrate client-side encryption for security."
+    },
+    {
+      "problem_id": "real-time-analytics",
+      "approach_name": "Stream Processing with In-Memory Store",
+      "architecture_components": [
+        "Data Producers (Clients/Servers)",
+        "Ingestion Queue (Kafka)",
+        "Stream Processing Engine (Flink/Spark Streaming/Storm)",
+        "In-Memory Database (Redis/Timeseries DB)",
+        "Visualization Dashboard"
+      ],
+      "explanation": "Producers send events to a distributed message queue (Kafka). A stream processing engine (e.g. Apache Flink or Spark Streaming) consumes these events, computes real-time aggregations (counts, averages), and writes results to a low-latency datastore (like Redis or a time-series database). Dashboards query this store to display current metrics. This pipeline allows windowed computations (e.g., per minute/hour). Checkpointing in the streaming engine ensures stateful fault recovery.",
+      "design_choices": [
+        "Use a distributed log (Kafka) as the buffer to handle bursts and provide durability",
+        "Choose a stream processing framework that supports stateful computations and windowing",
+        "Store aggregated metrics in an in-memory store for fast queries",
+        "Decide on data retention (recent window vs long-term storage) and summarization strategy"
+      ],
+      "scalability": "Scale Kafka brokers and partitions for higher throughput. The stream processing cluster can be scaled by adding more worker nodes. The in-memory database can also be sharded or clustered for more memory and compute.",
+      "availability": "Kafka and the processing cluster should be multi-node with replication. Use checkpointing and replication in the stream processor. Provide fallback to slower batch processing if needed.",
+      "fault_tolerance": "Stream processors checkpoint state so they can recover from failures without data loss. If processing fails, messages remain in Kafka to be reprocessed. Data is replicated across machines.",
+      "extensions": "Add alerts/notifications when metrics exceed thresholds. Incorporate machine learning for anomaly detection. Store historical aggregated data for trend analysis."
+    },
+    {
+      "problem_id": "multiplayer-game",
+      "approach_name": "Dedicated Matchmaking and Game Servers",
+      "architecture_components": [
+        "Client (Game App)",
+        "Matchmaking Service",
+        "Game Servers (Stateful)",
+        "Real-Time Communication (UDP/TCP/WebSockets)",
+        "Database (Player Profiles/Scores)"
+      ],
+      "explanation": "Players request to play; the matchmaking service groups them into games based on criteria (rank, region). Once matched, a game server instance is spun up or assigned. The game server maintains game state and communicates in real-time with players using sockets or UDP for fast updates. Periodically, player actions and game state updates are sent to the server, which relays relevant data to others. Player data and results are stored in a database. If a game server fails, a backup server can restore state from last checkpoint.",
+      "design_choices": [
+        "Separate matchmaking (stateless) from game servers (stateful) for flexibility",
+        "Use server instances per match to isolate game state and scale horizontally",
+        "Choose communication protocol (UDP for speed, TCP/WebSocket for reliability)",
+        "Implement state synchronization strategies (lockstep or client-authoritative) depending on game type"
+      ],
+      "scalability": "Scale by adding more matchmaker instances and game server instances. Use geographic distribution to reduce latency (players matched to nearby servers). Use autoscaling policies based on player load.",
+      "availability": "Run backup servers for game sessions if needed. Use load balancing for matchmakers and a server pool for games. Redistribute players if a server goes down.",
+      "fault_tolerance": "Implement checkpointing of game state or authoritative rollback to handle server crashes. Use dedicated servers instead of P2P to reduce trust issues.",
+      "extensions": "Support voice chat, in-game purchases, tournaments, or AI bots. Add monitoring for cheating and use rate limiting for anti-abuse."
+    }
+  ]
+  

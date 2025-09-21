@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./services/api
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - ./services/api/chroma_db:/app/chroma_db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build: ./services/frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  chroma_data:
