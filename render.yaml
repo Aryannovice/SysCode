@@ -3,7 +3,7 @@ services:
     name: syscode-api
     env: docker
     dockerfilePath: services/api/Dockerfile
-    buildContext: services/api
+    dockerContext: services/api
     plan: free
     autoDeploy: true
     healthCheckPath: /health
@@ -21,7 +21,7 @@ services:
     name: syscode-frontend
     env: docker
     dockerfilePath: services/frontend/Dockerfile
-    buildContext: services/frontend
+    dockerContext: services/frontend
     plan: free
     autoDeploy: true
     envVars:
