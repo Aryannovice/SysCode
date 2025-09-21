@@ -1,0 +1,26 @@
+﻿services:
+  - type: web
+    name: syscode-api
+    env: docker
+    dockerfilePath: services/api/Dockerfile
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
+    disk:
+      name: chroma-data
+      mountPath: /app/chroma_db
+      sizeGB: 1
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CHROMA_PERSIST_DIRECTORY
+        value: /app/chroma_db
+
+  - type: static
+    name: syscode-frontend
+    rootDir: services/frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: build
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://REPLACE_WITH_BACKEND_URL/api/v1
