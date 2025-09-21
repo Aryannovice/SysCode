@@ -27,7 +27,7 @@ npm install && npm start
 
 ## Features
 
-- **Interactive Canvas**: Drag-and-drop system architecture components
+- **Interactive Canvas**: Drag-and-drop system architecture components(in Version2, I will implement)
 - **AI Assistant**: LeetCode-style system design problems with intelligent hints
 - **RAG System**: Context-aware responses using ChromaDB
 - **Real-time Visualization**: 2D/3D component relationships
