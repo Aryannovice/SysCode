@@ -5,6 +5,7 @@ services:
     dockerfilePath: services/api/Dockerfile
     dockerContext: services/api
     plan: free
+    region: oregon
     autoDeploy: true
     healthCheckPath: /health
     envVars:
@@ -19,6 +20,7 @@ services:
     dockerfilePath: services/frontend/Dockerfile
     dockerContext: services/frontend
     plan: free
+    region: oregon
     autoDeploy: true
     envVars:
       - key: REACT_APP_API_URL
