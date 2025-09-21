@@ -16,7 +16,8 @@ services:
         sync: false
       - key: CHROMA_PERSIST_DIRECTORY
         value: /app/chroma_db
-  - type: static_site
+
+  - type: web  # ← changed from static_site to web
     name: syscode-frontend
     rootDir: services/frontend
     buildCommand: npm ci && npm run build
