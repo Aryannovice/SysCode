@@ -17,7 +17,7 @@ services:
       - key: CHROMA_PERSIST_DIRECTORY
         value: /app/chroma_db
 
-  - type: web
+  - type: static_site
     name: syscode-frontend
     rootDir: services/frontend
     buildCommand: npm ci && npm run build
@@ -29,3 +29,4 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+
