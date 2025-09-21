@@ -2,8 +2,8 @@ services:
   - type: web
     name: syscode-api
     env: docker
-    dockerfilePath: services/api/Dockerfile
-    dockerContext: services/api
+    dockerfilePath: ./services/api/Dockerfile
+    rootDir: ./services/api
     plan: free
     region: oregon
     autoDeploy: true
@@ -17,8 +17,8 @@ services:
   - type: web
     name: syscode-frontend
     env: docker
-    dockerfilePath: services/frontend/Dockerfile
-    dockerContext: services/frontend
+    dockerfilePath: ./services/frontend/Dockerfile
+    rootDir: ./services/frontend
     plan: free
     region: oregon
     autoDeploy: true
