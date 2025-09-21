@@ -17,16 +17,13 @@ services:
       - key: CHROMA_PERSIST_DIRECTORY
         value: /app/chroma_db
 
-  - type: static_site
+  - type: web
     name: syscode-frontend
-    rootDir: services/frontend
-    buildCommand: npm ci && npm run build
-    staticPublishPath: build
+    env: docker
+    dockerfilePath: services/frontend/Dockerfile
+    buildContext: services/frontend
+    plan: free
+    autoDeploy: true
     envVars:
       - key: REACT_APP_API_URL
         value: https://REPLACE_WITH_BACKEND_URL/api/v1
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-
