@@ -55,6 +55,22 @@ export interface AssistantResponse {
   confidence: string;
 }
 
+export interface HintsResponse {
+  problem_id: string;
+  hints: string[];
+  count: number;
+}
+
+export interface AssistantStatus {
+  llm_available: boolean;
+  openai_configured: boolean;
+  rag_available: boolean;
+  collection_stats: any;
+  // Backend returns both for back-compat.
+  capabilities?: any;
+  features?: any;
+}
+
 class APIClient {
   // Problem Management
   async getAllProblems(): Promise<{problems: Problem[], stats: any}> {
@@ -131,7 +147,7 @@ class APIClient {
   }
 
   // LLM-Enhanced Features
-  async getDynamicHints(problemId: string, progress?: any): Promise<{problem_id: string, hints: string[], total_hints: number}> {
+  async getDynamicHints(problemId: string, progress?: any): Promise<HintsResponse> {
     const url = new URL(`${API_BASE}/problems/${problemId}/hints`);
     if (progress) {
       url.searchParams.append('progress', JSON.stringify(progress));
@@ -160,7 +176,7 @@ class APIClient {
     return response.json();
   }
 
-  async getAssistantStatus(): Promise<{llm_available: boolean, openai_configured: boolean, features: any}> {
+  async getAssistantStatus(): Promise<AssistantStatus> {
     const response = await fetch(`${API_BASE}/assistant/status`);
     if (!response.ok) {
       throw new Error('Failed to get assistant status');

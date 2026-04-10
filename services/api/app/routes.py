@@ -4,6 +4,7 @@ from pydantic import BaseModel
 import json
 import asyncio
 import logging
+from typing import Optional
 
 # Import services with error handling
 try:
@@ -68,13 +69,46 @@ router = APIRouter()
 # Pydantic models for request bodies
 class QuestionRequest(BaseModel):
     question: str
-    problem_context: str = None
-    conversation_history: list = None
+    # Back-compat + frontend compatibility:
+    # - frontend sends `context_problem_id`
+    # - backend can also accept direct `problem_context`
+    context_problem_id: Optional[str] = None
+    problem_context: Optional[str] = None
+    conversation_history: Optional[list] = None
 
 class SolutionRequest(BaseModel):
     architecture_components: list
     design_choices: list = []
     explanation: str = ""
+
+@router.get("/solutions/{problem_id}")
+async def get_expected_solution(problem_id: str):
+    """Get the expected/reference solution for a problem."""
+    if not problem_service:
+        raise HTTPException(status_code=503, detail="Problem service not available")
+
+    try:
+        solution = problem_service.get_solution_for_problem(problem_id)
+        if not solution:
+            raise HTTPException(status_code=404, detail=f"Solution for problem '{problem_id}' not found")
+        return solution
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/solutions/compare/{problem_id}")
+async def compare_solution(problem_id: str, solution: SolutionRequest):
+    """Compare a user's solution with the expected solution."""
+    if not solution_service:
+        raise HTTPException(status_code=503, detail="Solution verification service not available")
+
+    try:
+        return solution_service.compare_solutions(problem_id, solution.dict())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/design/submit", response_model=DesignResponse)
 async def submit_design(request: DesignRequest):
@@ -177,12 +211,45 @@ async def ask_assistant(request: QuestionRequest):
         raise HTTPException(status_code=503, detail="RAG system not available")
     
     try:
-        response = rag_response_generator.answer_question(
+        # If caller provided a problem id, enrich prompt context from problems.json.
+        problem_context = request.problem_context
+        if not problem_context and request.context_problem_id and problem_service:
+            problem = problem_service.get_problem_by_id(request.context_problem_id)
+            if problem:
+                title = problem.get("title", "")
+                desc = problem.get("description", "")
+                expectations = problem.get("expectations", [])
+                exp_preview = "; ".join(expectations[:6])
+                problem_context = f"{title}: {desc}\nKey requirements: {exp_preview}".strip()
+
+        rag = rag_response_generator.answer_question(
             question=request.question,
-            problem_context=request.problem_context,
-            conversation_history=request.conversation_history
+            problem_context=problem_context,
+            conversation_history=request.conversation_history,
         )
-        return response
+
+        # Normalize into the shape the frontend expects, while keeping useful metadata.
+        sources = rag.get("sources", []) if isinstance(rag, dict) else []
+        retrieved_count = rag.get("retrieved_count", 0) if isinstance(rag, dict) else 0
+        related_concepts = []
+        for source in sources:
+            title = (source or {}).get("title")
+            if title and title not in related_concepts:
+                related_concepts.append(title)
+
+        confidence = "high" if retrieved_count > 0 else "medium"
+
+        return {
+            "question": request.question,
+            "answer": rag.get("answer") if isinstance(rag, dict) else str(rag),
+            "related_concepts": related_concepts[:5],
+            "confidence": confidence,
+            # Extra fields (safe for frontend to ignore)
+            "sources": sources,
+            "retrieved_count": retrieved_count,
+            "query_used": rag.get("query_used") if isinstance(rag, dict) else None,
+            "rag_enhanced": True,
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -196,14 +263,22 @@ async def get_assistant_status():
         
         return {
             "llm_available": llm_service.is_available() if llm_service else False,
+            "openai_configured": bool(getattr(llm_service, "api_key", None)) if llm_service else False,
             "rag_available": rag_available and not collection_stats.get("error"),
             "collection_stats": collection_stats,
+            # Frontend/back-compat: include `capabilities` and `features`.
             "capabilities": {
                 "question_answering": rag_available,
                 "solution_evaluation": llm_service.is_available() if llm_service else False,
                 "hint_generation": llm_service.is_available() if llm_service else False,
                 "follow_up_questions": llm_service.is_available() if llm_service else False
-            }
+            },
+            "features": {
+                "question_answering": rag_available,
+                "solution_evaluation": llm_service.is_available() if llm_service else False,
+                "hint_generation": llm_service.is_available() if llm_service else False,
+                "follow_up_questions": llm_service.is_available() if llm_service else False,
+            },
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

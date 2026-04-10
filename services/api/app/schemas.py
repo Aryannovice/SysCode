@@ -30,7 +30,7 @@ class DesignResponse(BaseModel):
     analysis: str
     suggestions: List[str]
     components: List[DesignComponent]
-    estimated_complexity: str
+    estimated_complexity: str = "unknown"
 
 class FeedbackRequest(BaseModel):
     component_type: ComponentType
